@@ -1,0 +1,11 @@
+{
+  "models": [
+    {
+      "id": "8922b5d4",
+      "name": "My deepseek",
+      "model": "deepseek-chat",
+      "url": "https://api.deepseek.com/v1",
+      "api_key": "sk-xxx"
+    }
+  ]
+}
