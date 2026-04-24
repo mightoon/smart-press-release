@@ -3,6 +3,7 @@ import json
 import os
 import uuid
 import re
+import base64
 import requests as http_requests
 from flask import Flask, request, jsonify, Response, render_template
 from flask_cors import CORS
@@ -31,17 +32,36 @@ PUBLIC_MODEL_PRESETS = {
 
 # ========== Reference content for built-in types ==========
 FANXING_REF = """【繁星计划参考内容】
-“繁星计划”是公司内部沉淀经验、传递智慧、促进互学共进的重要知识分享平台，旨在加强员工队伍建设，鼓励员工在深耕本职工作的同时，养成总结经验、乐于分享的良好习惯，着力打造积极向上、团结协作的学习型团队，不断提升全体员工的综合能力与素质，更好助力公司高质量发展。
-2月9日，xxx开展了“人工智能核心技术及应用实践”技术分享活动，各项目代表及开发人员参加了此次培训。开展了“人工智能核心技术及应用实践”技术分享活动，各项目代表及开发人员参加了此次培训。
-本次培训由研发中心xx主讲，他系统阐述了人工智能从哲学启蒙到技术爆发的完整历程，并重点强调了AI技术在驱动公司业务数字化转型中的战略价值。培训内容围绕人工智能的历史演进、关键突破及现代应用展开，涵盖了神经网络、深度学习、大模型等核心领域，帮助团队构建系统化的AI知识体系。
-培训采用“理论讲解+案例演示”相结合的方式，通过图像识别、自然语言处理等实际场景案例，生动演示了AI技术在业务中的技术路径。主讲人通过由浅入深、条分缕析的讲解，系统阐述了从理论突破到工程实践的关键路径。参训人员全程专注聆听，并结合讲义内容认真记录要点，对人工智能的技术发展脉络与核心原理形成了更为系统、清晰的认识。大家纷纷表示，培训内容兼具理论深度与实践指导性，有效拓宽了技术视野。
-此次专项培训的成功举办，不仅强化了团队对人工智能技术脉络的把握，更激发了创新应用的热情。未来，公司将持续以“技术赋能”为导向，深化AI与业务的融合，为推动高质量发展注入新动能。"""
+"繁星计划"是公司内部沉淀经验、传递智慧、促进互学共进的重要知识分享平台，旨在加强员工队伍建设，鼓励员工在深耕本职工作的同时，养成总结经验、乐于分享的良好习惯，着力打造积极向上、团结协作的学习型团队，不断提升全体员工的综合能力与素质，更好助力公司高质量发展。
+2月9日，xxx开展了"人工智能核心技术及应用实践"技术分享活动，各项目代表及开发人员参加了此次培训。
+本次培训由研发中心xxxx主讲，他系统阐述了人工智能从哲学启蒙到技术爆发的完整历程，并重点强调了AI技术在驱动公司业务数字化转型中的战略价值。培训内容围绕人工智能的历史演进、关键突破及现代应用展开，涵盖了神经网络、深度学习、大模型等核心领域，帮助团队构建系统化的AI知识体系。
+培训采用"理论讲解+案例演示"相结合的方式，通过图像识别、自然语言处理等实际场景案例，生动演示了AI技术在业务中的技术路径。主讲人通过由浅入深、条分缕析的讲解，系统阐述了从理论突破到工程实践的关键路径。参训人员全程专注聆听，并结合讲义内容认真记录要点，对人工智能的技术发展脉络与核心原理形成了更为系统、清晰的认识。大家纷纷表示，培训内容兼具理论深度与实践指导性，有效拓宽了技术视野。
+此次专项培训的成功举办，不仅强化了团队对人工智能技术脉络的把握，更激发了创新应用的热情。未来，公司将持续以"技术赋能"为导向，深化AI与业务的融合，为推动高质量发展注入新动能。"""
 
 ZHUANTI_REF = """【专题培训参考内容】
-为深入贯彻落实公司"能力提升年"专项行动部署，全面提升研发人员的核心理论素养与技术应用能力，10月30日，xxx举办"傅里叶变换基础"专题培训，xx产品部全体研发人员参与了此次培训。
-此次培训由xx产品部算法工程师xx担任主讲，围绕傅里叶变换的核心原理及其在工程实践中的关键应用展开深度解析。在基础理论层面，阐释傅里叶变换如何将复杂的时域信号分解为不同频率的正弦波组合，揭示信号的本质结构。针对研发人员的实际需求，讲解傅里叶变换这一高效计算工具的核心思想及其对现代数字信号处理工程应用的影响，培训将重点剖析傅里叶变换在DDC和多相滤波器的核心作用。此外，培训还将探讨傅里叶变换作为一种强大的思维方式，如何帮助工程师在解决通信系统的复杂技术问题时，获得全新的分析视角和解决方案。
+为深入贯彻落实公司"能力提升年"专项行动部署，全面提升研发人员的核心理论素养与技术应用能力，10月30日，xxx举办"傅里叶变换基础"专题培训，xxx产品部全体研发人员参与了此次培训。
+此次培训由xx产品部算法工程师xxx担任主讲，围绕傅里叶变换的核心原理及其在工程实践中的关键应用展开深度解析。在基础理论层面，阐释傅里叶变换如何将复杂的时域信号分解为不同频率的正弦波组合，揭示信号的本质结构。针对研发人员的实际需求，讲解傅里叶变换这一高效计算工具的核心思想及其对现代数字信号处理工程应用的影响，培训将重点剖析傅里叶变换在DDC和多相滤波器的核心作用。此外，培训还将探讨傅里叶变换作为一种强大的思维方式，如何帮助工程师在解决通信系统的复杂技术问题时，获得全新的分析视角和解决方案。
 培训通过实际工程案例，如通信信号调制、解析、检测等内容，直观展示傅里叶变换在研发过程中的具体应用，有力地推动参训人员实现从"数学工具理解"到"研发实战运用"的能力跃迁，为复杂系统设计与算法优化提供坚实支撑。
-整场培训注重基础性与实用性相结合，旨在帮助研发人员打通理论瓶颈，提升在xx产品开发任务中的自主创新与规范实施能力，为公司高质量发展注入创新动能。"""
+整场培训注重基础性与实用性相结合，旨在帮助研发人员打通理论瓶颈，提升在xxx产品开发任务中的自主创新与规范实施能力，为公司高质量发展注入创新动能。"""
+
+
+# ========== API Key helpers (Base64 encode/decode) ==========
+def encode_api_key(key):
+    """Base64 encode an API key for storage."""
+    if not key:
+        return ''
+    return base64.b64encode(key.encode('utf-8')).decode('utf-8')
+
+
+def decode_api_key(encoded):
+    """Base64 decode an API key from storage."""
+    if not encoded:
+        return ''
+    try:
+        return base64.b64decode(encoded.encode('utf-8')).decode('utf-8')
+    except Exception:
+        # If it's not base64 (legacy data), return as-is
+        return encoded
 
 
 # ========== Config helpers ==========
@@ -49,7 +69,7 @@ def load_config():
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
-    return {'models': []}
+    return {'models': [], 'themes': []}
 
 
 def save_config(config):
@@ -63,10 +83,23 @@ def index():
     return render_template('index.html')
 
 
+# ========== Model APIs ==========
 @app.route('/api/models', methods=['GET'])
 def get_models():
     config = load_config()
-    return jsonify(config['models'])
+    # Return models without exposing api_key
+    safe_models = []
+    for m in config['models']:
+        safe_models.append({
+            'id': m['id'],
+            'name': m['name'],
+            'model': m.get('model', ''),
+            'url': m.get('url', ''),
+            'type': m.get('type', 'public'),
+            'preset': m.get('preset', ''),
+            'has_api_key': bool(m.get('api_key', ''))
+        })
+    return jsonify(safe_models)
 
 
 @app.route('/api/models', methods=['POST'])
@@ -77,6 +110,7 @@ def add_model():
     model_entry = {
         'id': str(uuid.uuid4())[:8],
         'name': data.get('name', ''),
+        'type': data.get('type', 'public'),
     }
 
     if data.get('type') == 'public':
@@ -84,15 +118,84 @@ def add_model():
         preset_info = PUBLIC_MODEL_PRESETS.get(preset, PUBLIC_MODEL_PRESETS['deepseek'])
         model_entry['model'] = preset_info['model']
         model_entry['url'] = preset_info['url']
-        model_entry['api_key'] = data.get('api_key', '')
+        model_entry['api_key'] = encode_api_key(data.get('api_key', ''))
+        model_entry['preset'] = preset
     else:
         model_entry['model'] = data.get('model_id', '')
         model_entry['url'] = data.get('base_url', '')
-        model_entry['api_key'] = data.get('api_key', '')
+        model_entry['api_key'] = encode_api_key(data.get('api_key', ''))
+        model_entry['preset'] = ''
 
     config['models'].append(model_entry)
     save_config(config)
-    return jsonify({'success': True, 'model': model_entry})
+    return jsonify({'success': True, 'model': {
+        'id': model_entry['id'],
+        'name': model_entry['name'],
+        'model': model_entry['model'],
+        'url': model_entry['url'],
+        'type': model_entry['type'],
+        'preset': model_entry.get('preset', ''),
+        'has_api_key': bool(model_entry['api_key'])
+    }})
+
+
+@app.route('/api/models/<model_id>', methods=['PUT'])
+def update_model(model_id):
+    data = request.json
+    config = load_config()
+    model = next((m for m in config['models'] if m['id'] == model_id), None)
+    if not model:
+        return jsonify({'error': '模型不存在'}), 404
+
+    model['name'] = data.get('name', model['name'])
+
+    if data.get('type') == 'public' or model.get('type') == 'public':
+        preset = data.get('preset', model.get('preset', 'deepseek'))
+        preset_info = PUBLIC_MODEL_PRESETS.get(preset, PUBLIC_MODEL_PRESETS['deepseek'])
+        model['type'] = 'public'
+        model['preset'] = preset
+        model['model'] = preset_info['model']
+        model['url'] = preset_info['url']
+        if data.get('api_key'):
+            model['api_key'] = encode_api_key(data['api_key'])
+    else:
+        model['type'] = 'local'
+        model['preset'] = ''
+        if data.get('model_id'):
+            model['model'] = data['model_id']
+        if data.get('base_url'):
+            model['url'] = data['base_url']
+        if data.get('api_key') is not None:
+            model['api_key'] = encode_api_key(data['api_key'])
+
+    save_config(config)
+    return jsonify({'success': True, 'model': {
+        'id': model['id'],
+        'name': model['name'],
+        'model': model['model'],
+        'url': model['url'],
+        'type': model['type'],
+        'preset': model.get('preset', ''),
+        'has_api_key': bool(model['api_key'])
+    }})
+
+
+@app.route('/api/models/<model_id>', methods=['DELETE'])
+def delete_model(model_id):
+    config = load_config()
+    config['models'] = [m for m in config['models'] if m['id'] != model_id]
+    save_config(config)
+    return jsonify({'success': True})
+
+
+@app.route('/api/models/<model_id>/apikey', methods=['GET'])
+def get_model_apikey(model_id):
+    """Return the decoded API key for editing purposes."""
+    config = load_config()
+    model = next((m for m in config['models'] if m['id'] == model_id), None)
+    if not model:
+        return jsonify({'error': '模型不存在'}), 404
+    return jsonify({'api_key': decode_api_key(model.get('api_key', ''))})
 
 
 @app.route('/api/verify-model', methods=['POST'])
@@ -114,7 +217,6 @@ def verify_model():
             api_key=api_key or 'dummy',
             base_url=base_url
         )
-        # Simple test: list models or a minimal chat completion
         try:
             response = client.chat.completions.create(
                 model=model_name,
@@ -125,17 +227,62 @@ def verify_model():
             return jsonify({'success': True})
         except Exception as e:
             error_msg = str(e)
-            # Some APIs return specific errors for short content but still confirm connectivity
             if 'authentication' in error_msg.lower() or 'unauthorized' in error_msg.lower() or 'invalid api' in error_msg.lower():
                 return jsonify({'success': False, 'error': 'API Key无效'})
             if 'model' in error_msg.lower() and 'not found' in error_msg.lower():
                 return jsonify({'success': False, 'error': '模型不存在'})
-            # If we got any response (even an error about tokens), the connection works
             return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 
+# ========== Theme APIs ==========
+@app.route('/api/themes', methods=['GET'])
+def get_themes():
+    config = load_config()
+    return jsonify(config.get('themes', []))
+
+
+@app.route('/api/themes', methods=['POST'])
+def add_theme():
+    data = request.json
+    config = load_config()
+    theme = {
+        'id': str(uuid.uuid4())[:8],
+        'name': data.get('name', ''),
+        'content': data.get('content', '')
+    }
+    if 'themes' not in config:
+        config['themes'] = []
+    config['themes'].append(theme)
+    save_config(config)
+    return jsonify({'success': True, 'theme': theme})
+
+
+@app.route('/api/themes/<theme_id>', methods=['PUT'])
+def update_theme(theme_id):
+    data = request.json
+    config = load_config()
+    theme = next((t for t in config.get('themes', []) if t['id'] == theme_id), None)
+    if not theme:
+        return jsonify({'error': '主题不存在'}), 404
+    if data.get('name'):
+        theme['name'] = data['name']
+    if data.get('content') is not None:
+        theme['content'] = data['content']
+    save_config(config)
+    return jsonify({'success': True, 'theme': theme})
+
+
+@app.route('/api/themes/<theme_id>', methods=['DELETE'])
+def delete_theme(theme_id):
+    config = load_config()
+    config['themes'] = [t for t in config.get('themes', []) if t['id'] != theme_id]
+    save_config(config)
+    return jsonify({'success': True})
+
+
+# ========== File Upload ==========
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -162,7 +309,6 @@ def upload_file():
 
 
 def parse_docx(file_obj):
-    """Parse .docx file using python-docx."""
     from docx import Document
     import io
     doc = Document(io.BytesIO(file_obj.read()))
@@ -170,8 +316,6 @@ def parse_docx(file_obj):
 
 
 def parse_doc(file_obj):
-    """Parse .doc file - basic attempt, may need antiword or similar."""
-    # For .doc files, try reading as text first, otherwise recommend conversion
     try:
         return file_obj.read().decode('utf-8', errors='ignore')
     except:
@@ -179,9 +323,9 @@ def parse_doc(file_obj):
 
 
 def parse_pdf(file_obj):
-    """Parse .pdf file - basic text extraction."""
+    """Parse .pdf file using PyMuPDF (fitz)."""
     try:
-        import fitz  # PyMuPDF
+        import fitz
         import io
         doc = fitz.open(stream=io.BytesIO(file_obj.read()), filetype="pdf")
         text = ""
@@ -192,10 +336,12 @@ def parse_pdf(file_obj):
         return "（PDF解析需要安装PyMuPDF：pip install PyMuPDF）"
 
 
+# ========== URL Fetch + LLM Clean ==========
 @app.route('/api/fetch-url', methods=['POST'])
 def fetch_url():
     data = request.json
     url = data.get('url', '')
+    model_id = data.get('model_id', '')
     if not url:
         return jsonify({'error': '请提供URL'}), 400
 
@@ -208,23 +354,79 @@ def fetch_url():
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(resp.text, 'html.parser')
 
-        # Remove script and style elements
         for s in soup(['script', 'style', 'nav', 'header', 'footer']):
             s.decompose()
 
         text = soup.get_text(separator='\n', strip=True)
-        # Clean up excessive blank lines
         text = re.sub(r'\n{3,}', '\n\n', text)
+
+        # Use LLM to clean the content - model_id is required
+        if not model_id:
+            return jsonify({'error': '使用URL获取内容需要大模型来清洗数据，请先选择一个模型'}), 400
+
+        cleaned = clean_url_content_with_llm(text, model_id)
+        if cleaned:
+            return jsonify({'text': cleaned})
+
         return jsonify({'text': text})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 
+def clean_url_content_with_llm(raw_text, model_id):
+    """Use LLM to extract main content from URL text, removing noise but preserving original wording."""
+    config = load_config()
+    model = next((m for m in config['models'] if m['id'] == model_id), None)
+    if not model:
+        return None
+
+    try:
+        api_key = decode_api_key(model.get('api_key', ''))
+        client = OpenAI(
+            api_key=api_key or 'dummy',
+            base_url=model['url']
+        )
+        # Truncate if too long
+        max_input = 8000
+        truncated = raw_text[:max_input]
+
+        prompt = f"""以下是从网页中提取的文本内容，其中包含大量干扰信息（如导航栏、广告、页脚、版权声明、按钮文字等）。请你识别并去除这些干扰内容，只保留页面的主要正文内容。
+
+重要要求：
+1. 不要总结或改写内容，必须保留原文的用词和表述
+2. 只删除干扰信息，保留正文原文
+3. 如果内容本身有清晰的段落结构，保留段落分隔
+4. 如果无法判断哪些是干扰内容，宁可多保留也不要误删
+
+以下是网页内容：
+---
+{truncated}
+---
+
+请输出清理后的正文内容："""
+
+        response = client.chat.completions.create(
+            model=model['model'],
+            messages=[
+                {'role': 'system', 'content': '你是一个网页内容提取助手，擅长从杂乱的网页文本中提取出核心正文内容，保留原文不变，只去除干扰信息。'},
+                {'role': 'user', 'content': prompt}
+            ],
+            stream=False,
+            temperature=0.1,
+            max_tokens=4096,
+            **({'extra_body': {'chat_template_kwargs': {'enable_thinking': False, 'thinking': False}}} if any(kw in model['model'].lower() for kw in ['qwen3.5', 'qwen35', 'qwq-']) else {})
+        )
+        return response.choices[0].message.content
+    except Exception:
+        return None
+
+
+# ========== Generate ==========
 @app.route('/api/generate', methods=['POST'])
 def generate():
     data = request.json
     model_id = data.get('model_id')
-    press_type = data.get('type', '其他')
+    press_type = data.get('type', '')
     word_count = data.get('word_count', 500)
     user_input = data.get('user_input', '')
     file_texts = data.get('file_texts', [])
@@ -236,23 +438,47 @@ def generate():
         return jsonify({'error': '模型不存在'}), 400
 
     # Build prompt
-    prompt = build_prompt(press_type, word_count, user_input, file_texts, ref_content)
+    prompt = build_prompt(press_type, word_count, user_input, file_texts, ref_content, config)
+
+    api_key = decode_api_key(model.get('api_key', ''))
+
+    # Detect Qwen model variants for thinking control
+    model_name_lower = model['model'].lower()
+    is_qwen35 = any(kw in model_name_lower for kw in ['qwen3.5', 'qwen35', 'qwq-'])
+    is_qwen3 = not is_qwen35 and any(kw in model_name_lower for kw in ['qwen3', 'qwen-3'])
 
     def stream_response():
         try:
             client = OpenAI(
-                api_key=model.get('api_key') or 'dummy',
+                api_key=api_key or 'dummy',
                 base_url=model['url']
             )
+
+            # Build extra_body for Qwen 3.5 to disable thinking
+            extra_body = None
+            if is_qwen35:
+                extra_body = {
+                    'chat_template_kwargs': {
+                        'enable_thinking': False,
+                        'thinking': False
+                    }
+                }
+
+            # Append /no_thinking for Qwen 3 series
+            user_prompt = prompt
+            if is_qwen3:
+                user_prompt = prompt + ' /no_thinking'
+
             stream = client.chat.completions.create(
                 model=model['model'],
                 messages=[
                     {'role': 'system', 'content': '你是一位专业的通讯稿撰写专家。请根据用户提供的素材和要求，撰写高质量的通讯稿。'},
-                    {'role': 'user', 'content': prompt}
+                    {'role': 'user', 'content': user_prompt}
                 ],
                 stream=True,
                 temperature=0.7,
-                max_tokens=4096
+                max_tokens=4096,
+                **({'extra_body': extra_body} if extra_body else {})
             )
             for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta.content:
@@ -265,7 +491,7 @@ def generate():
     return Response(stream_response(), mimetype='text/event-stream')
 
 
-def build_prompt(press_type, word_count, user_input, file_texts, ref_content):
+def build_prompt(press_type, word_count, user_input, file_texts, ref_content, config):
     """Build the complete prompt for press release generation."""
     parts = []
 
@@ -277,7 +503,11 @@ def build_prompt(press_type, word_count, user_input, file_texts, ref_content):
     elif press_type == '专题培训':
         parts.append(f"通讯稿类型为「专题培训」，以下为专题培训的参考内容，请参考其写作风格和格式：\n{ZHUANTI_REF}\n")
     else:
-        if ref_content:
+        # Check if it's a saved theme
+        theme = next((t for t in config.get('themes', []) if t['name'] == press_type), None)
+        if theme and theme.get('content'):
+            parts.append(f"通讯稿类型为「{press_type}」，以下为该类型的参考内容，请参考其写作风格和格式：\n{theme['content']}\n")
+        elif ref_content:
             parts.append(f"以下是用户提供的参考内容，请参考其写作风格和格式：\n{ref_content}\n")
 
     # User input

@@ -3,18 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>通讯稿生成器</title>
+  <title>通讯稿智能体</title>
   <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
   <div class="app-container">
     <header class="app-header">
-      <h1>通讯稿生成器</h1>
+      <h1>通讯稿智能体</h1>
       <p>基于大模型智能生成通讯稿</p>
     </header>
 
     <!-- Output area -->
-    <div class="output-area" id="outputArea"></div>
+    <div class="output-wrapper">
+      <div class="output-area" id="outputArea"></div>
+      <button class="btn-copy" id="copyBtn" title="复制内容" style="display:none;">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+          <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+        </svg>
+      </button>
+    </div>
 
     <!-- Input container -->
     <div class="input-container">
@@ -26,11 +34,11 @@
           <select class="toolbar-select" id="modelSelect">
             <option value="" disabled selected>选择模型</option>
           </select>
-          <!-- Type select -->
+          <!-- Type/Theme select -->
           <select class="toolbar-select" id="typeSelect">
+            <option value="" disabled selected>选择主题</option>
             <option value="繁星计划">繁星计划</option>
             <option value="专题培训">专题培训</option>
-            <option value="其他">其他</option>
           </select>
           <!-- Word count select -->
           <select class="toolbar-select" id="wordCountSelect">
@@ -59,10 +67,19 @@
     </div>
   </div>
 
-  <!-- Add Model Modal -->
-  <div class="modal-overlay" id="addModelModal">
-    <div class="modal">
-      <h2>添加模型</h2>
+  <!-- Manage Model Modal -->
+  <div class="modal-overlay" id="manageModelModal">
+    <div class="modal modal-wide">
+      <h2>管理模型</h2>
+
+      <!-- Existing models list -->
+      <div class="manage-list" id="modelList"></div>
+
+      <div class="manage-divider"></div>
+
+      <!-- Add/Edit form -->
+      <h3 id="modelFormTitle">添加模型</h3>
+      <input type="hidden" id="editingModelId" value="">
       <div class="model-type-tabs">
         <button class="model-type-tab active" data-type="public" onclick="switchModelType('public')">公共模型</button>
         <button class="model-type-tab" data-type="local" onclick="switchModelType('local')">本地模型</button>
@@ -98,16 +115,24 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeAddModelModal()">取消</button>
-        <button class="btn btn-primary" id="addModelConfirmBtn" onclick="addModel()" disabled>添加</button>
+        <button class="btn btn-secondary" onclick="closeManageModelModal()">返回</button>
+        <button class="btn btn-primary" id="saveModelBtn" onclick="saveModel()" disabled>保存</button>
       </div>
     </div>
   </div>
 
-  <!-- Reference Modal (for "其他" type) -->
-  <div class="modal-overlay" id="refModal">
-    <div class="modal">
-      <h2>内容参考</h2>
+  <!-- Manage Theme Modal -->
+  <div class="modal-overlay" id="manageThemeModal">
+    <div class="modal modal-wide">
+      <h2>管理主题</h2>
+
+      <!-- Existing themes list -->
+      <div class="manage-list" id="themeList"></div>
+
+      <div class="manage-divider"></div>
+
+      <!-- Add/Get content section -->
+      <h3>添加主题</h3>
       <div class="ref-option-group">
         <div class="ref-option active" data-ref="url" onclick="switchRefType('url')">
           <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
@@ -128,17 +153,89 @@
         <button class="btn btn-primary" style="margin-top:8px;" onclick="fetchRefUrl()">获取内容</button>
       </div>
       <div id="refFileSection" style="display:none;">
-        <input type="file" class="ref-file-input" id="refFileInput" accept=".txt,.doc,.docx,.pdf,.md" onchange="uploadRefFile()">
+        <div class="ref-file-row">
+          <button class="btn btn-secondary" onclick="document.getElementById('refFileInput').click()">选择文档</button>
+          <span class="ref-file-hint">支持 txt, doc, docx, pdf, md 格式</span>
+        </div>
+        <input type="file" class="file-input" id="refFileInput" accept=".txt,.doc,.docx,.pdf,.md" onchange="uploadRefFile()">
       </div>
       <div id="refTextSection" style="display:none;">
-        <textarea class="ref-text-input" id="refTextInput" placeholder="请输入参考内容..."></textarea>
+        <!-- Text is entered directly in preview area -->
       </div>
 
-      <div class="ref-content-area" id="refContentPreview"></div>
+      <div class="ref-content-area" id="refContentPreview" contenteditable="true"></div>
 
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeRefModal()">取消</button>
-        <button class="btn btn-primary" id="refConfirmBtn" onclick="confirmRef()" disabled>确认</button>
+        <button class="btn btn-secondary" onclick="closeManageThemeModal()">返回</button>
+        <button class="btn btn-primary" id="addThemeBtn" onclick="addAsTheme()" disabled>添加为主题</button>
+        <button class="btn btn-secondary" id="tempRefBtn" onclick="addAsTempRef()" disabled>临时添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Theme Name Input Modal (nested) -->
+  <div class="modal-overlay" id="themeNameModal">
+    <div class="modal modal-small">
+      <h2>输入主题名称</h2>
+      <label>主题名称</label>
+      <input type="text" id="themeNameInput" placeholder="例如：项目启动会">
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeThemeNameModal()">取消</button>
+        <button class="btn btn-primary" onclick="confirmThemeName()">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Theme Modal -->
+  <div class="modal-overlay" id="editThemeModal">
+    <div class="modal modal-wide">
+      <h2>编辑主题</h2>
+      <input type="hidden" id="editingThemeId" value="">
+      <label>主题名称</label>
+      <input type="text" id="editThemeName" placeholder="主题名称">
+      <label>参考内容</label>
+      <div class="ref-content-area" id="editThemeContent" contenteditable="true" style="margin-top:8px;"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeEditThemeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveEditedTheme()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Model Modal -->
+  <div class="modal-overlay" id="editModelModal">
+    <div class="modal">
+      <h2>编辑模型</h2>
+      <input type="hidden" id="editModelId" value="">
+      <div id="editModelForm">
+        <label>模型名称</label>
+        <input type="text" id="editModelName" placeholder="模型名称">
+        <div id="editPublicFields">
+          <label>公共模型类型</label>
+          <select id="editModelPreset">
+            <option value="deepseek">DeepSeek</option>
+            <option value="kimi">Kimi</option>
+            <option value="minimax">MiniMax</option>
+          </select>
+          <label>API Key（留空保持不变）</label>
+          <input type="password" id="editModelApiKey" placeholder="留空则不修改">
+        </div>
+        <div id="editLocalFields" style="display:none;">
+          <label>Model ID</label>
+          <input type="text" id="editModelModelId" placeholder="Model ID">
+          <label>Base URL</label>
+          <input type="text" id="editModelBaseUrl" placeholder="Base URL">
+          <label>API Key（留空保持不变）</label>
+          <input type="password" id="editModelApiKeyLocal" placeholder="留空则不修改">
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn-verify" id="editVerifyModelBtn" onclick="verifyEditModel()" disabled>验证连接</button>
+        <div class="verify-status" id="editVerifyStatus"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeEditModelModal()">取消</button>
+        <button class="btn btn-primary" id="editSaveModelBtn" onclick="saveEditedModel()" disabled>保存</button>
       </div>
     </div>
   </div>
