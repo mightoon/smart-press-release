@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  press-release:
+    build: .
+    container_name: press-release
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    volumes:
+      - ./config.json:/app/config.json
