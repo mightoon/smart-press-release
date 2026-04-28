@@ -38,6 +38,85 @@ body {
   overflow: hidden;
 }
 
+/* Mobile: allow page scrolling */
+@media (max-width: 768px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+
+  .app-container {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
+  .output-wrapper {
+    flex: none;
+    height: 50vh;
+  }
+
+  .output-area {
+    flex: none;
+    height: 50vh;
+  }
+
+  .input-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .toolbar-left {
+    flex: 0 0 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  #modelSelect, #typeSelect {
+    width: 47%;
+    flex: none;
+    font-size: 0.75rem;
+    padding: 5px 20px 5px 6px;
+    box-sizing: border-box;
+  }
+
+  #wordCountSelect {
+    width: 47%;
+    flex: none;
+    font-size: 0.75rem;
+    padding: 5px 20px 5px 6px;
+    margin-top: 6px;
+    box-sizing: border-box;
+  }
+
+  .custom-word-input {
+    width: 55px;
+    flex: none;
+    font-size: 0.75rem;
+    margin-top: 6px;
+    box-sizing: border-box;
+  }
+
+  .toolbar-right {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .app-header {
+    padding: 16px 0 12px;
+  }
+
+  .app-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .app-header p {
+    font-size: 0.8rem;
+  }
+}
+
 /* Header */
 .app-header {
   text-align: center;
