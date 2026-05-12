@@ -9,3 +9,4 @@ services:
       - "5002:5002"
     volumes:
       - ./config.json:/app/config.json
+      - ./app.log:/app/app.log

@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ========== Load Models ==========
 async function loadModels() {
-  const resp = await fetch('/api/models');
+  const resp = await fetch('/press-release/api/models');
   models = await resp.json();
   renderModelSelect();
 }
@@ -54,7 +54,7 @@ function renderModelSelect() {
 
 // ========== Load Themes ==========
 async function loadThemes() {
-  const resp = await fetch('/api/themes');
+  const resp = await fetch('/press-release/api/themes');
   themes = await resp.json();
   renderTypeSelect();
 }
@@ -154,7 +154,7 @@ function setupUpload() {
       const formData = new FormData();
       formData.append('file', file);
       try {
-        const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+        const resp = await fetch('/press-release/api/upload', { method: 'POST', body: formData });
         const data = await resp.json();
         if (data.text) {
           uploadedFileTexts.push(data.text);
@@ -240,7 +240,7 @@ async function generatePressRelease() {
   outputArea.innerHTML = '<span class="typing-cursor"></span>';
 
   try {
-    const resp = await fetch('/api/generate', {
+    const resp = await fetch('/press-release/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -418,7 +418,7 @@ async function verifyModel() {
   }
 
   try {
-    const resp = await fetch('/api/verify-model', {
+    const resp = await fetch('/press-release/api/verify-model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -462,7 +462,7 @@ async function saveModel() {
     }
 
     try {
-      const resp = await fetch(`/api/models/${editingId}`, {
+      const resp = await fetch(`/press-release/api/models/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -498,7 +498,7 @@ async function saveModel() {
     }
 
     try {
-      const resp = await fetch('/api/models', {
+      const resp = await fetch('/press-release/api/models', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -520,7 +520,7 @@ async function saveModel() {
 async function deleteModel(id) {
   if (!confirm('确定删除此模型？')) return;
   try {
-    await fetch(`/api/models/${id}`, { method: 'DELETE' });
+    await fetch(`/press-release/api/models/${id}`, { method: 'DELETE' });
     await loadModels();
     renderModelList();
   } catch (e) {
@@ -538,7 +538,7 @@ async function openEditModel(id) {
   // Fetch the API key for editing
   let apiKey = '';
   try {
-    const resp = await fetch(`/api/models/${id}/apikey`);
+    const resp = await fetch(`/press-release/api/models/${id}/apikey`);
     const data = await resp.json();
     apiKey = data.api_key || '';
   } catch (e) { /* ignore */ }
@@ -652,7 +652,7 @@ async function verifyEditModel() {
   }
 
   try {
-    const resp = await fetch('/api/verify-model', {
+    const resp = await fetch('/press-release/api/verify-model', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -696,7 +696,7 @@ async function saveEditedModel() {
   }
 
   try {
-    const resp = await fetch(`/api/models/${id}`, {
+    const resp = await fetch(`/press-release/api/models/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -814,7 +814,7 @@ async function fetchRefUrl() {
   preview.innerHTML = '<span class="loading"></span> 获取并清洗中...';
 
   try {
-    const resp = await fetch('/api/fetch-url', {
+    const resp = await fetch('/press-release/api/fetch-url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, model_id: modelId })
@@ -842,7 +842,7 @@ async function uploadRefFile() {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+    const resp = await fetch('/press-release/api/upload', { method: 'POST', body: formData });
     const data = await resp.json();
     if (data.text) {
       preview.textContent = data.text;
@@ -889,7 +889,7 @@ async function confirmThemeName() {
   }
 
   try {
-    const resp = await fetch('/api/themes', {
+    const resp = await fetch('/press-release/api/themes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, content: selectedRefContent })
@@ -948,7 +948,7 @@ async function saveEditedTheme() {
     return;
   }
   try {
-    const resp = await fetch(`/api/themes/${id}`, {
+    const resp = await fetch(`/press-release/api/themes/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, content })
@@ -969,7 +969,7 @@ async function saveEditedTheme() {
 async function deleteTheme(id) {
   if (!confirm('确定删除此主题？')) return;
   try {
-    await fetch(`/api/themes/${id}`, { method: 'DELETE' });
+    await fetch(`/press-release/api/themes/${id}`, { method: 'DELETE' });
     await loadThemes();
     renderThemeList();
   } catch (e) {

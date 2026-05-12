@@ -4,13 +4,29 @@ import os
 import uuid
 import re
 import base64
+import logging
+from logging.handlers import RotatingFileHandler
 import requests as http_requests
 from flask import Flask, request, jsonify, Response, render_template
 from flask_cors import CORS
 from openai import OpenAI
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/press-release/static')
 CORS(app)
+
+# ========== Logging setup ==========
+LOG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app.log')
+handler = RotatingFileHandler(LOG_PATH, maxBytes=10*1024*1024, backupCount=5, encoding='utf-8')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s')
+handler.setFormatter(formatter)
+app.logger.setLevel(logging.INFO)
+app.logger.addHandler(handler)
+# Also log to console
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+console.setFormatter(formatter)
+app.logger.addHandler(console)
 
 CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
 
@@ -78,14 +94,16 @@ def save_config(config):
 
 
 # ========== Routes ==========
-@app.route('/')
+@app.route('/press-release/')
 def index():
+    app.logger.info('Index page requested from %s', request.remote_addr)
     return render_template('index.html')
 
 
 # ========== Model APIs ==========
-@app.route('/api/models', methods=['GET'])
+@app.route('/press-release/api/models', methods=['GET'])
 def get_models():
+    app.logger.info('GET /api/models from %s', request.remote_addr)
     config = load_config()
     # Return models without exposing api_key
     safe_models = []
@@ -99,11 +117,13 @@ def get_models():
             'preset': m.get('preset', ''),
             'has_api_key': bool(m.get('api_key', ''))
         })
+    app.logger.info('Returning %d models', len(safe_models))
     return jsonify(safe_models)
 
 
-@app.route('/api/models', methods=['POST'])
+@app.route('/press-release/api/models', methods=['POST'])
 def add_model():
+    app.logger.info('POST /api/models from %s', request.remote_addr)
     data = request.json
     config = load_config()
 
@@ -128,6 +148,7 @@ def add_model():
 
     config['models'].append(model_entry)
     save_config(config)
+    app.logger.info('Model added: %s (%s)', model_entry['name'], model_entry['id'])
     return jsonify({'success': True, 'model': {
         'id': model_entry['id'],
         'name': model_entry['name'],
@@ -139,12 +160,14 @@ def add_model():
     }})
 
 
-@app.route('/api/models/<model_id>', methods=['PUT'])
+@app.route('/press-release/api/models/<model_id>', methods=['PUT'])
 def update_model(model_id):
+    app.logger.info('PUT /api/models/%s from %s', model_id, request.remote_addr)
     data = request.json
     config = load_config()
     model = next((m for m in config['models'] if m['id'] == model_id), None)
     if not model:
+        app.logger.warning('Model not found for update: %s', model_id)
         return jsonify({'error': '模型不存在'}), 404
 
     model['name'] = data.get('name', model['name'])
@@ -169,6 +192,7 @@ def update_model(model_id):
             model['api_key'] = encode_api_key(data['api_key'])
 
     save_config(config)
+    app.logger.info('Model updated: %s', model_id)
     return jsonify({'success': True, 'model': {
         'id': model['id'],
         'name': model['name'],
@@ -180,15 +204,17 @@ def update_model(model_id):
     }})
 
 
-@app.route('/api/models/<model_id>', methods=['DELETE'])
+@app.route('/press-release/api/models/<model_id>', methods=['DELETE'])
 def delete_model(model_id):
+    app.logger.info('DELETE /api/models/%s from %s', model_id, request.remote_addr)
     config = load_config()
     config['models'] = [m for m in config['models'] if m['id'] != model_id]
     save_config(config)
+    app.logger.info('Model deleted: %s', model_id)
     return jsonify({'success': True})
 
 
-@app.route('/api/models/<model_id>/apikey', methods=['GET'])
+@app.route('/press-release/api/models/<model_id>/apikey', methods=['GET'])
 def get_model_apikey(model_id):
     """Return the decoded API key for editing purposes."""
     config = load_config()
@@ -198,8 +224,9 @@ def get_model_apikey(model_id):
     return jsonify({'api_key': decode_api_key(model.get('api_key', ''))})
 
 
-@app.route('/api/verify-model', methods=['POST'])
+@app.route('/press-release/api/verify-model', methods=['POST'])
 def verify_model():
+    app.logger.info('POST /api/verify-model from %s', request.remote_addr)
     data = request.json
     try:
         if data.get('type') == 'public':
@@ -224,26 +251,32 @@ def verify_model():
                 max_tokens=5,
                 stream=False
             )
+            app.logger.info('Model verification success: %s', model_name)
             return jsonify({'success': True})
         except Exception as e:
             error_msg = str(e)
+            app.logger.error('Model verification failed: %s', error_msg)
             if 'authentication' in error_msg.lower() or 'unauthorized' in error_msg.lower() or 'invalid api' in error_msg.lower():
                 return jsonify({'success': False, 'error': 'API Key无效'})
             if 'model' in error_msg.lower() and 'not found' in error_msg.lower():
                 return jsonify({'success': False, 'error': '模型不存在'})
-            return jsonify({'success': True})
+            return jsonify({'success': False, 'error': error_msg})
     except Exception as e:
+        app.logger.error('Error in verify_model: %s', e, exc_info=True)
         return jsonify({'success': False, 'error': str(e)})
 
 
 # ========== Theme APIs ==========
-@app.route('/api/themes', methods=['GET'])
+@app.route('/press-release/api/themes', methods=['GET'])
 def get_themes():
+    app.logger.info('GET /api/themes from %s', request.remote_addr)
     config = load_config()
-    return jsonify(config.get('themes', []))
+    themes = config.get('themes', [])
+    app.logger.info('Returning %d themes', len(themes))
+    return jsonify(themes)
 
 
-@app.route('/api/themes', methods=['POST'])
+@app.route('/press-release/api/themes', methods=['POST'])
 def add_theme():
     data = request.json
     config = load_config()
@@ -259,7 +292,7 @@ def add_theme():
     return jsonify({'success': True, 'theme': theme})
 
 
-@app.route('/api/themes/<theme_id>', methods=['PUT'])
+@app.route('/press-release/api/themes/<theme_id>', methods=['PUT'])
 def update_theme(theme_id):
     data = request.json
     config = load_config()
@@ -274,7 +307,7 @@ def update_theme(theme_id):
     return jsonify({'success': True, 'theme': theme})
 
 
-@app.route('/api/themes/<theme_id>', methods=['DELETE'])
+@app.route('/press-release/api/themes/<theme_id>', methods=['DELETE'])
 def delete_theme(theme_id):
     config = load_config()
     config['themes'] = [t for t in config.get('themes', []) if t['id'] != theme_id]
@@ -283,7 +316,7 @@ def delete_theme(theme_id):
 
 
 # ========== File Upload ==========
-@app.route('/api/upload', methods=['POST'])
+@app.route('/press-release/api/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
         return jsonify({'error': '没有文件'}), 400
@@ -337,7 +370,7 @@ def parse_pdf(file_obj):
 
 
 # ========== URL Fetch + LLM Clean ==========
-@app.route('/api/fetch-url', methods=['POST'])
+@app.route('/press-release/api/fetch-url', methods=['POST'])
 def fetch_url():
     data = request.json
     url = data.get('url', '')
@@ -405,6 +438,17 @@ def clean_url_content_with_llm(raw_text, model_id):
 
 请输出清理后的正文内容："""
 
+        # Detect Qwen model variants for thinking control (based on model field)
+        model_field_lower = model['model'].lower()
+        is_qwen3x = bool(re.match(r'^qwen3[^-]', model_field_lower))
+        is_qwen3 = bool(re.match(r'^qwen3-', model_field_lower))
+        if is_qwen3x:
+            extra_body = {'chat_template_kwargs': {'enable_thinking': False, 'thinking': False}}
+        elif is_qwen3:
+            extra_body = {'enable_thinking': False}
+        else:
+            extra_body = None
+
         response = client.chat.completions.create(
             model=model['model'],
             messages=[
@@ -414,7 +458,7 @@ def clean_url_content_with_llm(raw_text, model_id):
             stream=False,
             temperature=0.1,
             max_tokens=4096,
-            **({'extra_body': {'chat_template_kwargs': {'enable_thinking': False, 'thinking': False}}} if any(kw in model['model'].lower() for kw in ['qwen3.5', 'qwen35', 'qwq-']) else {})
+            **({'extra_body': extra_body} if extra_body else {})
         )
         return response.choices[0].message.content
     except Exception:
@@ -422,8 +466,9 @@ def clean_url_content_with_llm(raw_text, model_id):
 
 
 # ========== Generate ==========
-@app.route('/api/generate', methods=['POST'])
+@app.route('/press-release/api/generate', methods=['POST'])
 def generate():
+    app.logger.info('POST /api/generate from %s', request.remote_addr)
     data = request.json
     model_id = data.get('model_id')
     press_type = data.get('type', '')
@@ -435,6 +480,7 @@ def generate():
     config = load_config()
     model = next((m for m in config['models'] if m['id'] == model_id), None)
     if not model:
+        app.logger.warning('Generate failed: model not found %s', model_id)
         return jsonify({'error': '模型不存在'}), 400
 
     # Build prompt
@@ -442,10 +488,11 @@ def generate():
 
     api_key = decode_api_key(model.get('api_key', ''))
 
-    # Detect Qwen model variants for thinking control
-    model_name_lower = model['model'].lower()
-    is_qwen35 = any(kw in model_name_lower for kw in ['qwen3.5', 'qwen35', 'qwq-'])
-    is_qwen3 = not is_qwen35 and any(kw in model_name_lower for kw in ['qwen3', 'qwen-3'])
+    # Detect Qwen model variants for thinking control (based on model field)
+    model_field_lower = model['model'].lower()
+    is_qwen3x = bool(re.match(r'^qwen3[^-]', model_field_lower))
+    is_qwen3 = bool(re.match(r'^qwen3-', model_field_lower))
+    app.logger.info('Generate using model=%s, type=qwen3x=%s qwen3=%s', model['model'], is_qwen3x, is_qwen3)
 
     def stream_response():
         try:
@@ -454,26 +501,23 @@ def generate():
                 base_url=model['url']
             )
 
-            # Build extra_body for Qwen 3.5 to disable thinking
+            # Build extra_body for Qwen thinking control
             extra_body = None
-            if is_qwen35:
+            if is_qwen3x:
                 extra_body = {
                     'chat_template_kwargs': {
                         'enable_thinking': False,
                         'thinking': False
                     }
                 }
-
-            # Append /no_thinking for Qwen 3 series
-            user_prompt = prompt
-            if is_qwen3:
-                user_prompt = prompt + ' /no_thinking'
+            elif is_qwen3:
+                extra_body = {'enable_thinking': False}
 
             stream = client.chat.completions.create(
                 model=model['model'],
                 messages=[
                     {'role': 'system', 'content': '你是一位专业的通讯稿撰写专家。请根据用户提供的素材和要求，撰写高质量的通讯稿。'},
-                    {'role': 'user', 'content': user_prompt}
+                    {'role': 'user', 'content': prompt}
                 ],
                 stream=True,
                 temperature=0.7,
@@ -486,8 +530,10 @@ def generate():
                     yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
+            app.logger.error('Generate stream error: %s', e, exc_info=True)
             yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
 
+    app.logger.info('Generate stream started for model=%s', model['model'])
     return Response(stream_response(), mimetype='text/event-stream')
 
 
@@ -525,4 +571,5 @@ def build_prompt(press_type, word_count, user_input, file_texts, ref_content, co
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.logger.info('Press Release Generator starting...')
+    app.run(debug=False, host='0.0.0.0', port=5002)
